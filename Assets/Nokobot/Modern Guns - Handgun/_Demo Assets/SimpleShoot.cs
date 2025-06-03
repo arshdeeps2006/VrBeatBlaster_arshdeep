@@ -1,10 +1,18 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 [AddComponentMenu("Nokobot/Modern Guns/Simple Shoot")]
 public class SimpleShoot : MonoBehaviour
 {
+    [SerializeField] private AudioClip gunShotSound;
+    [SerializeField] private AudioClip gunReloadSound;
+
+    public Text ammoText;
+    private AudioSource audioSource;
+    private bool ReloadSoundSwitch = false; 
+
     public int maxAmmo = 10; // Maximum ammo in the gun
     private int currentAmmo; // Current ammo in the gun
 
@@ -28,31 +36,47 @@ public class SimpleShoot : MonoBehaviour
 
     void Start()
     {
+        audioSource = GetComponent<AudioSource>();
+
         if (barrelLocation == null)
             barrelLocation = transform;
 
         if (gunAnimator == null)
             gunAnimator = GetComponentInChildren<Animator>();
 
-        Reload();
+        StartCoroutine(Reload());
+        ammoText.text = "AMMO : 10/10";
     }
 
-    void Reload()
+    IEnumerator Reload()
     {
+        //Reload Sound Effect
+        if (ReloadSoundSwitch)
+        {
+            audioSource.clip = gunReloadSound;
+            audioSource.Play();
+            ammoText.text = "RELOADING...";
+            // Wait for 1.5 seconds before completing reload
+             yield return new WaitForSeconds(1.75f);
+        }
+        ReloadSoundSwitch = true;
+
+
         // Reset current ammo to max ammo
         currentAmmo = maxAmmo;
+        ammoText.text = "AMMO : " + currentAmmo + "/" + maxAmmo;
     }
 
     void Update()
     {
         //If you want a different input, change it here
 
-        if (Vector3.Angle(transform.up, Vector3.up) > 100 && currentAmmo < maxAmmo)
+        if (Vector3.Angle(transform.up, Vector3.up) > 90 && currentAmmo < maxAmmo)
         {
             // If the gun is tilted too much, reload automatically
-            Reload();
+            StartCoroutine(Reload());
         }
-        if (Input.GetButtonDown("Fire1") && Vector3.Angle(transform.up, Vector3.up) < 100)
+        if (Input.GetButtonDown("Fire1") && Vector3.Angle(transform.up, Vector3.up) < 90)
         {
             if (currentAmmo > 0)
             {
@@ -75,6 +99,11 @@ public class SimpleShoot : MonoBehaviour
 
         currentAmmo--; // Reduce ammo here
         Debug.Log("Ammo remaining: " + currentAmmo);
+
+        //Gun shot sound effect
+        audioSource.clip = gunShotSound;
+        audioSource.Play();
+        ammoText.text = "AMMO : " + currentAmmo + "/" + maxAmmo;
 
         // Create and fire the bullet
         Instantiate(bulletPrefab, barrelLocation.position, barrelLocation.rotation).GetComponent<Rigidbody>().AddForce(barrelLocation.forward * shotPower);
