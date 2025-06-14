@@ -2,24 +2,41 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 [AddComponentMenu("Nokobot/Modern Guns/Simple Shoot")]
 public class SimpleShoot : MonoBehaviour
 {
-    [SerializeField] private AudioClip gunShotSound;
-    [SerializeField] private AudioClip gunReloadSound;
-
-    public Text ammoText;
-    private AudioSource audioSource;
-    private bool ReloadSoundSwitch = false; 
-
     public int maxAmmo = 10; // Maximum ammo in the gun
     private int currentAmmo; // Current ammo in the gun
+    private bool ReloadSoundSwitch = false;
+   
+
+    //[Header("UI Elements")]
+    //public Text ammoText; 
+
+    [Header("VR Ammo Display")]
+    //World Space Canvas: Creates ammo display that exists in 3D world space, not screen space
+    [SerializeField] private Canvas ammoCanvas; // World Space Canvas
+    [SerializeField] private TextMeshProUGUI ammoText; // Use TextMeshPro for better VR text
+    [SerializeField] private Transform ammoDisplayPosition; // Where to position the ammo display
+    [SerializeField] private float ammoDisplayScale = 0.01f; // Scale for VR world space
+                                                             //[SerializeField] private bool alwaysFacePlayer = true; // Should ammo always face the player
+    [SerializeField] private float Ammotextsize = 5f;
+    private bool isFlashing = false; // This flag prevent toggling reload and 0 by frame
 
     [Header("Prefab Refrences")]
     public GameObject bulletPrefab;
     public GameObject casingPrefab;
     public GameObject muzzleFlashPrefab;
+
+    [Header("Audio References")]
+    [Tooltip("Audio clip for shooting")]
+    public AudioClip shootSound;
+    [Tooltip("Audio clip for reloading")]
+    public AudioClip reloadSound;
+    public AudioClip emptyGunShot;
+    private AudioSource audioSource;
 
     [Header("Location Refrences")]
     [SerializeField] private Animator gunAnimator;
@@ -34,49 +51,50 @@ public class SimpleShoot : MonoBehaviour
     [Tooltip("Line duration")][SerializeField] private float lineDuration = 0.5f;
     [Tooltip("Line color")][SerializeField] private Color lineColor = Color.yellow;
 
+
+
     void Start()
     {
-        audioSource = GetComponent<AudioSource>();
-
         if (barrelLocation == null)
             barrelLocation = transform;
 
         if (gunAnimator == null)
             gunAnimator = GetComponentInChildren<Animator>();
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+        SetupAmmoDisplay(); // Set up the ammo display
 
-        StartCoroutine(Reload());
-        ammoText.text = "AMMO : 10/10";
+        Reload();
     }
 
-    IEnumerator Reload()
+    void Reload()
     {
-        //Reload Sound Effect
-        if (ReloadSoundSwitch)
-        {
-            audioSource.clip = gunReloadSound;
-            audioSource.Play();
-            ammoText.text = "RELOADING...";
-            // Wait for 1.5 seconds before completing reload
-             yield return new WaitForSeconds(1.75f);
-        }
-        ReloadSoundSwitch = true;
-
-
         // Reset current ammo to max ammo
         currentAmmo = maxAmmo;
-        ammoText.text = "AMMO : " + currentAmmo + "/" + maxAmmo;
+        UpdateAmmoDisplay();
+        if (reloadSound != null && audioSource != null && ReloadSoundSwitch)
+        {
+            audioSource.PlayOneShot(reloadSound);
+        }
+        ReloadSoundSwitch = true;
+        // UpdateAmmoUI();
     }
 
     void Update()
     {
+        // Update ammo display every frame
+        UpdateAmmoDisplay();
         //If you want a different input, change it here
 
-        if (Vector3.Angle(transform.up, Vector3.up) > 90 && currentAmmo < maxAmmo)
+        if (Vector3.Angle(transform.up, Vector3.up) > 100 && currentAmmo < maxAmmo)
         {
             // If the gun is tilted too much, reload automatically
-            StartCoroutine(Reload());
+            Reload();
         }
-        if (Input.GetButtonDown("Fire1") && Vector3.Angle(transform.up, Vector3.up) < 90)
+        if (Input.GetButtonDown("Fire1") && Vector3.Angle(transform.up, Vector3.up) < 100)
         {
             if (currentAmmo > 0)
             {
@@ -84,14 +102,14 @@ public class SimpleShoot : MonoBehaviour
             }
             else
             {
-                Debug.Log("Out of ammo!"); 
-                //********************YOUR TASK IS TO SHOW UI THAT POPS UP IN THE GAME WHEN GUN IS OUT OF AMMO
+                audioSource.PlayOneShot(emptyGunShot);
+                Debug.Log("Out of ammo!");
             }
         }
     }
 
     //This function creates the bullet behavior
-    void Shoot()
+    public void Shoot()
     {
         //cancels if there's no bullet prefeb
         if (!bulletPrefab || currentAmmo <= 0)
@@ -100,14 +118,14 @@ public class SimpleShoot : MonoBehaviour
         currentAmmo--; // Reduce ammo here
         Debug.Log("Ammo remaining: " + currentAmmo);
 
-        //Gun shot sound effect
-        audioSource.clip = gunShotSound;
-        audioSource.Play();
-        ammoText.text = "AMMO : " + currentAmmo + "/" + maxAmmo;
+        if (shootSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(shootSound);
+        }
 
         // Create and fire the bullet
-        Instantiate(bulletPrefab, barrelLocation.position, barrelLocation.rotation).GetComponent<Rigidbody>().AddForce(barrelLocation.forward * shotPower);
-
+        GameObject tempBullet = Instantiate(bulletPrefab, barrelLocation.position, barrelLocation.rotation);
+        tempBullet.GetComponent<Rigidbody>().AddForce(barrelLocation.forward * shotPower);
         if (muzzleFlashPrefab)
         {
             //Create the muzzle flash
@@ -120,6 +138,7 @@ public class SimpleShoot : MonoBehaviour
 
         // Create tracer line effect dynamically
         CreateTracerLine();
+        // UpdateAmmoUI();
     }
 
     void CreateTracerLine()
@@ -154,7 +173,7 @@ public class SimpleShoot : MonoBehaviour
         Vector3 endPoint = hasHit ? hitInfo.point : barrelLocation.position + barrelLocation.forward * 100f;
 
         // Add slight offset to start point to avoid clipping
-        startPoint += barrelLocation.forward * 0.1f;
+        startPoint += barrelLocation.forward * 1.3f;
 
         lineRenderer.SetPosition(0, startPoint);
         lineRenderer.SetPosition(1, endPoint);
@@ -187,4 +206,120 @@ public class SimpleShoot : MonoBehaviour
         Destroy(tempCasing, destroyTimer);
 
     }
+
+    void SetupAmmoDisplay()
+    {
+        // If no canvas is assigned, create one
+        if (ammoCanvas == null)
+        {
+            GameObject canvasGO = new GameObject("AmmoCanvas");
+            ammoCanvas = canvasGO.AddComponent<Canvas>();
+            canvasGO.AddComponent<CanvasScaler>();
+            canvasGO.AddComponent<GraphicRaycaster>();
+        }
+
+        // Configure canvas for world space
+        ammoCanvas.renderMode = RenderMode.WorldSpace;
+        ammoCanvas.transform.SetParent(transform); // Parent to gun
+
+        // Position the canvas
+        if (ammoDisplayPosition != null)
+        {
+            ammoCanvas.transform.position = ammoDisplayPosition.position;
+            ammoCanvas.transform.rotation = ammoDisplayPosition.rotation;
+        }
+        else
+        {
+            // Default position: slightly above and in front of gun
+            ammoCanvas.transform.localPosition = new Vector3(0, 0.1f, 0.2f);
+            ammoCanvas.transform.localRotation = Quaternion.identity;
+        }
+
+        // Scale the canvas for VR
+        ammoCanvas.transform.localScale = Vector3.one * ammoDisplayScale;
+
+        // Set up the text component
+        if (ammoText == null)
+        {
+            GameObject textGO = new GameObject("AmmoText");
+            textGO.transform.SetParent(ammoCanvas.transform);
+            ammoText = textGO.AddComponent<TextMeshProUGUI>();
+        }
+
+        // Configure the text
+        ammoText.text = currentAmmo.ToString();//Initialises, we have to update this in update
+        ammoText.fontSize = Ammotextsize; // Large font size for world space
+        ammoText.color = Color.white;
+        ammoText.alignment = TextAlignmentOptions.Center;
+        ammoText.fontStyle = FontStyles.Italic;
+
+        // Position text in canvas
+        RectTransform textRect = ammoText.GetComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+
+        // Add outline to digit.
+        if (ammoText.fontSharedMaterial != null)
+        {
+            ammoText.outlineWidth = 0.2f;
+            ammoText.outlineColor = Color.black;
+        }
+    }
+
+    //This function call updates the ammo display.
+    void UpdateAmmoDisplay()
+    {
+        if (ammoText != null && !isFlashing)//This check is helpful for public var/serialised var.
+        {
+            ammoText.text = currentAmmo.ToString();//or can use $Ammo:"(currentAmmo)";
+
+            // Change color based on ammo level
+            if (currentAmmo == 0)
+            {
+                ammoText.color = Color.red;
+                ShowOutOfAmmoFeedback();
+            }
+            else if (currentAmmo <= maxAmmo * 0.3f) // Low ammo warning
+            {
+                ammoText.color = Color.yellow;
+            }
+            else
+            {
+                ammoText.color = Color.white;
+            }
+        }
+    }
+
+    void ShowOutOfAmmoFeedback()
+    {
+        if (ammoText != null && !isFlashing) // Prevent multiple flashing coroutines
+        {
+            StartCoroutine(FlashAmmoDisplay());
+        }
+    }
+
+    IEnumerator FlashAmmoDisplay()
+    {
+        isFlashing = true; // Set flag to prevent updates
+
+        string originalText = ammoText.text;
+        Color originalColor = ammoText.color;
+
+        for (int i = 0; i < 3; i++)
+        {
+            ammoText.text = "RELOAD";
+            ammoText.color = Color.red;
+            yield return new WaitForSeconds(0.5f); // Increased from 0.2f
+
+            ammoText.text = originalText;
+            ammoText.color = originalColor;
+            yield return new WaitForSeconds(0.5f); // Increased from 0.2f
+        }
+
+        isFlashing = false; // Reset flag
+        UpdateAmmoDisplay(); // Ensure display is correct after flashing
+    }
+
 }
