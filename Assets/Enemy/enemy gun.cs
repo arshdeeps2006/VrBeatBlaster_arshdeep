@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class enemy : MonoBehaviour
 {
+    public GameObject gun;
     public SimpleShoot shooter;
     public float shootInterval = 2f;
     private float shootTimer = 3.3f;
@@ -66,7 +67,13 @@ public class enemy : MonoBehaviour
             }
         }
 
+        gun.GetComponent<Rigidbody>().useGravity = true;
+
+
+
         this.enabled = false;
+
+        Destroy(gameObject, 8f);
     }
 
     void Shoot()

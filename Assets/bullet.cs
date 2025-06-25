@@ -9,5 +9,10 @@ public class bullet : MonoBehaviour
             Debug.Log("Collision of bullet with surface detected");
             Destroy(gameObject);
         }
+
+        //if (collision.gameObject.CompareTag("EnemySurface"))
+        //{
+        //    Physics.IgnoreCollision(collision.collider, GetComponent<Collider>());
+        //}
     }
 }

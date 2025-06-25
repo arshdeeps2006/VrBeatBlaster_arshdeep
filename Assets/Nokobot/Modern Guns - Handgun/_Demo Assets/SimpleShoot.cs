@@ -7,10 +7,12 @@ using TMPro;
 [AddComponentMenu("Nokobot/Modern Guns/Simple Shoot")]
 public class SimpleShoot : MonoBehaviour
 {
+    [Header("Role")]
+    public bool PlayerSwitch = false; // Set this true only for the player
     public int maxAmmo = 10; // Maximum ammo in the gun
     private int currentAmmo; // Current ammo in the gun
     private bool ReloadSoundSwitch = false;
-   
+    
 
     //[Header("UI Elements")]
     //public Text ammoText; 
@@ -47,9 +49,9 @@ public class SimpleShoot : MonoBehaviour
     [Tooltip("Specify time to destory the casing object")][SerializeField] private float destroyTimer = 2f;
     [Tooltip("Bullet Speed")][SerializeField] private float shotPower = 500f;
     [Tooltip("Casing Ejection Speed")][SerializeField] private float ejectPower = 150f;
-    [Tooltip("Line width")][SerializeField] private float lineWidth = 0.5f;
-    [Tooltip("Line duration")][SerializeField] private float lineDuration = 0.5f;
-    [Tooltip("Line color")][SerializeField] private Color lineColor = Color.yellow;
+    //[Tooltip("Line width")][SerializeField] private float lineWidth = 0.5f;
+    //[Tooltip("Line duration")][SerializeField] private float lineDuration = 0.5f;
+    //[Tooltip("Line color")][SerializeField] private Color lineColor = Color.yellow;
 
 
 
@@ -85,28 +87,32 @@ public class SimpleShoot : MonoBehaviour
 
     void Update()
     {
-        // Update ammo display every frame
         UpdateAmmoDisplay();
-        //If you want a different input, change it here
 
-        if (Vector3.Angle(transform.up, Vector3.up) > 100 && currentAmmo < maxAmmo)
+        if (PlayerSwitch)
         {
-            // If the gun is tilted too much, reload automatically
-            Reload();
-        }
-        if (Input.GetButtonDown("Fire1") && Vector3.Angle(transform.up, Vector3.up) < 100)
-        {
-            if (currentAmmo > 0)
+            // Player input-based shooting
+            if (Input.GetButtonDown("Fire1") && Vector3.Angle(transform.up, Vector3.up) < 100)
             {
-                gunAnimator.SetTrigger("Fire");
+                if (currentAmmo > 0)
+                {
+                    gunAnimator.SetTrigger("Fire");
+                }
+                else
+                {
+                    audioSource.PlayOneShot(emptyGunShot);
+                    Debug.Log("Out of ammo!");
+                }
             }
-            else
+
+            // Reload if tilted (player only)
+            if (Vector3.Angle(transform.up, Vector3.up) > 100 && currentAmmo < maxAmmo)
             {
-                audioSource.PlayOneShot(emptyGunShot);
-                Debug.Log("Out of ammo!");
+                Reload();
             }
         }
     }
+
 
     //This function creates the bullet behavior
     public void Shoot()
@@ -137,53 +143,53 @@ public class SimpleShoot : MonoBehaviour
         }
 
         // Create tracer line effect dynamically
-        CreateTracerLine();
+        //CreateTracerLine();
         // UpdateAmmoUI();
     }
 
-    void CreateTracerLine()
-    {
-        // Raycast to detect hit
-        RaycastHit hitInfo;
-        bool hasHit = Physics.Raycast(barrelLocation.position, barrelLocation.forward, out hitInfo, 100f);
+    //void CreateTracerLine()
+    //{
+    //    // Raycast to detect hit
+    //    RaycastHit hitInfo;
+    //    bool hasHit = Physics.Raycast(barrelLocation.position, barrelLocation.forward, out hitInfo, 100f);
 
-        // Create line dynamically
-        GameObject liner = new GameObject("TracerLine");
-        LineRenderer lineRenderer = liner.AddComponent<LineRenderer>();
+    //    // Create line dynamically
+    //    GameObject liner = new GameObject("TracerLine");
+    //    LineRenderer lineRenderer = liner.AddComponent<LineRenderer>();
 
-        // Use a simpler, more reliable shader
-        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+    //    // Use a simpler, more reliable shader
+    //    lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
 
-        // Set colors using startColor and endColor
-        lineRenderer.startColor = lineColor;
-        lineRenderer.endColor = lineColor;
+    //    // Set colors using startColor and endColor
+    //    lineRenderer.startColor = lineColor;
+    //    lineRenderer.endColor = lineColor;
 
-        // Configure other properties with better visibility settings
-        lineRenderer.startWidth = lineWidth;
-        lineRenderer.endWidth = lineWidth;
-        lineRenderer.positionCount = 2;
-        lineRenderer.useWorldSpace = true;
+    //    // Configure other properties with better visibility settings
+    //    lineRenderer.startWidth = lineWidth;
+    //    lineRenderer.endWidth = lineWidth;
+    //    lineRenderer.positionCount = 2;
+    //    lineRenderer.useWorldSpace = true;
 
-        // Ensure it renders properly
-        lineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        lineRenderer.receiveShadows = false;
-        lineRenderer.allowOcclusionWhenDynamic = false;
+    //    // Ensure it renders properly
+    //    lineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+    //    lineRenderer.receiveShadows = false;
+    //    lineRenderer.allowOcclusionWhenDynamic = false;
 
-        Vector3 startPoint = barrelLocation.position;
-        Vector3 endPoint = hasHit ? hitInfo.point : barrelLocation.position + barrelLocation.forward * 100f;
+    //    Vector3 startPoint = barrelLocation.position;
+    //    Vector3 endPoint = hasHit ? hitInfo.point : barrelLocation.position + barrelLocation.forward * 100f;
 
-        // Add slight offset to start point to avoid clipping
-        startPoint += barrelLocation.forward * 1.3f;
+    //    // Add slight offset to start point to avoid clipping
+    //    startPoint += barrelLocation.forward * 1.3f;
 
-        lineRenderer.SetPosition(0, startPoint);
-        lineRenderer.SetPosition(1, endPoint);
+    //    lineRenderer.SetPosition(0, startPoint);
+    //    lineRenderer.SetPosition(1, endPoint);
 
-        // Debug to check line length
-        Debug.Log($"Tracer line from {startPoint} to {endPoint}, distance: {Vector3.Distance(startPoint, endPoint)}");
+    //    // Debug to check line length
+    //    Debug.Log($"Tracer line from {startPoint} to {endPoint}, distance: {Vector3.Distance(startPoint, endPoint)}");
 
-        // Destroy the line after specified duration
-        Destroy(liner, lineDuration);
-    }
+    //    // Destroy the line after specified duration
+    //    Destroy(liner, lineDuration);
+    //}
 
     //This function creates a casing at the ejection slot
     void CasingRelease()
